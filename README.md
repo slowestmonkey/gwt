@@ -1,6 +1,6 @@
 # gwt-claude
 
-Git worktree manager for parallel Claude Code (cli) sessions
+Git worktree manager for parallel Claude Code (CLI) sessions
 ```
 Claude Code = 👍
 Git worktree = 👍
@@ -9,7 +9,7 @@ Claude Code + Git worktree = 👍²
 
 ## Why?
 
-Run multiple Claude Code (cli) sessions on different branches simultaneously. Each session gets its own directory, so no git conflicts or context switching.
+Run multiple Claude Code sessions on different branches simultaneously. Each session gets its own directory, so no git conflicts or context switching.
 
 ```bash
 # Start working on a feature
@@ -28,7 +28,7 @@ gwt-switch auth-refactor
 
 - **zsh** - Shell (default on macOS)
 - **git** - Version control
-- **claude** - [Claude Code CLI](https://claude.ai/claude-code)
+- **claude** - [Claude Code CLI](https://code.claude.com/docs/en/setup)
 
 ## Install
 
