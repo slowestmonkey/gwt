@@ -141,13 +141,25 @@ gwt-create() {
     git worktree add -b "$wt_name" "$worktree_path" "$base_branch"
   fi
 
-  if [[ $? -eq 0 ]]; then
-    echo "Opening Claude Code in worktree..."
-    cd "$worktree_path" && claude
-  else
+  if [[ $? -ne 0 ]]; then
     echo "Error: Failed to create worktree" >&2
     return 1
   fi
+
+  cd "$worktree_path"
+
+  # Auto-detect and prompt for dependency installation
+  if [[ -f "package.json" ]]; then
+    echo "Found package.json. Install dependencies? [y/N]"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+      echo "Installing dependencies..."
+      npm install
+    fi
+  fi
+
+  echo "Opening Claude Code in worktree..."
+  claude
 }
 
 # Usage: gwt-list
@@ -269,4 +281,6 @@ gwt-switch() {
 
   cd "$worktree_path"
   echo "Switched to: $worktree_path"
+  echo "Opening Claude Code..."
+  claude
 }

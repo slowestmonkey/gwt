@@ -49,6 +49,7 @@ source ~/.zshrc
 gwt-create <name>           # Create from main + open Claude Code
 gwt-create -l <name>        # Create from current branch (-l = local)
 gwt-create -b dev <name>    # Create from specific branch
+                            # Auto-prompts for npm install if package.json found
 gwt-list                    # List all worktrees
 gwt-switch <branch>         # Switch to worktree by branch name
 gwt-remove <branch>         # Remove worktree (with confirmation)
