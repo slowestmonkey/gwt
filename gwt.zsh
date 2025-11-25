@@ -1,343 +1,289 @@
-# Git Worktree Management Functions
-# Worktrees are stored in ~/.claude-worktrees/{repo-name}/{worktree-name}
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║  gwt-claude - Git Worktree Manager for Claude Code                        ║
+# ║  Worktrees stored in: ~/.claude-worktrees/{repo}/{branch}                 ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
 
-# Helper: Check if in git repo
+# ─────────────────────────────────────────────────────────────────────────────
+# Private Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
 _gwt_require_repo() {
-  if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+  git rev-parse --is-inside-work-tree &>/dev/null || {
     echo "Error: Not inside a git repository" >&2
     return 1
-  fi
+  }
 }
 
-# Helper: Get default branch (main or master)
+_gwt_main_repo() {
+  git worktree list --porcelain | head -1 | sed 's/^worktree //'
+}
+
 _gwt_default_branch() {
   git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main"
 }
 
-# Helper: Show help for all commands
+_gwt_worktree_path() {
+  local branch_name="$1"
+  local repo_name=$(basename "$(_gwt_main_repo)")
+  local dir_name="${branch_name//\//-}"
+  echo "$HOME/.claude-worktrees/${repo_name}/${dir_name}"
+}
+
+_gwt_find_path() {
+  local search="$1"
+  local exact="" partial=()
+  local porcelain=$(git worktree list --porcelain)
+  local path="" branch=""
+
+  while IFS= read -r line; do
+    [[ "$line" == worktree* ]] && path="${line#worktree }"
+    [[ "$line" == branch* ]] && {
+      branch="${line#branch refs/heads/}"
+      if [[ "$branch" == "$search" ]]; then
+        exact="$path"
+      elif [[ "$branch" == *"$search"* ]]; then
+        partial+=("$path")
+      fi
+    }
+  done <<< "$porcelain"
+
+  # Prefer exact match
+  [[ -n "$exact" ]] && { echo "$exact"; return 0; }
+
+  case ${#partial[@]} in
+    0) echo "Error: No worktree matches '$search'" >&2; return 1 ;;
+    1) echo "${partial[1]}" ;;
+    *) echo "Error: Multiple matches for '$search':" >&2
+       printf '  %s\n' "${partial[@]}" >&2
+       return 1 ;;
+  esac
+}
+
 _gwt_help() {
   cat <<'EOF'
 gwt-claude - Git worktree manager for parallel Claude Code sessions
 
-Commands:
-  gwt-create [-l | -b <branch>] <name>   Create worktree + open Claude Code
-    -l, --local    Create from current branch (default: main)
-    -b <branch>    Create from specific branch
+COMMANDS
+  gwt-create [-l|-b <branch>] <name>   Create worktree + open Claude Code
+  gwt-list                             List all worktrees
+  gwt-switch <branch>                  Switch to worktree + open Claude Code
+  gwt-remove [-f] <branch>             Remove worktree
 
-  gwt-list                               List all worktrees
+OPTIONS
+  -l, --local    Create from current branch (default: main/master)
+  -b <branch>    Create from specific branch
+  -f, --force    Skip confirmation, remove dirty worktrees
+  -h, --help     Show this help
 
-  gwt-switch <branch>                    Switch to worktree + open Claude Code
-
-  gwt-remove [-f] <branch>               Remove worktree by branch name
-    -f, --force    Skip confirmation + remove dirty worktrees
-
-Worktrees are stored in: ~/.claude-worktrees/{repo}/{name}
+STORAGE
+  ~/.claude-worktrees/{repo}/{branch}
 EOF
 }
 
-# Helper: Find worktree path by branch name
-# Usage: _gwt_find_path <branch>
-# Returns: path via stdout, or empty + error message if not found
-_gwt_find_path() {
-  local search_branch="$1"
-  local wt_path="" found_paths=()
+# ─────────────────────────────────────────────────────────────────────────────
+# Public Commands
+# ─────────────────────────────────────────────────────────────────────────────
 
-  # Parse porcelain output: worktree, HEAD, branch lines
-  local current_path="" current_branch=""
-  while IFS= read -r line; do
-    if [[ "$line" == worktree* ]]; then
-      current_path="${line#worktree }"
-    elif [[ "$line" == branch* ]]; then
-      current_branch="${line#branch refs/heads/}"
-      # Check for exact match
-      if [[ "$current_branch" == "$search_branch" ]]; then
-        found_paths+=("$current_path")
-      # Check for partial match (e.g., "feature" matches "feat/feature-xyz")
-      elif [[ "$current_branch" == *"$search_branch"* ]]; then
-        found_paths+=("$current_path")
-      fi
-    fi
-  done < <(git worktree list --porcelain)
-
-  # Not found
-  if [[ ${#found_paths[@]} -eq 0 ]]; then
-    echo "Error: No worktree found with branch matching '$search_branch'" >&2
-    echo "" >&2
-    echo "Available worktrees:" >&2
-    gwt-list >&2
-    return 1
-  fi
-
-  # Multiple matches
-  if [[ ${#found_paths[@]} -gt 1 ]]; then
-    echo "Error: Multiple worktrees match '$search_branch':" >&2
-    for p in "${found_paths[@]}"; do
-      echo "  $p" >&2
-    done
-    echo "" >&2
-    echo "Please be more specific." >&2
-    return 1
-  fi
-
-  echo "${found_paths[1]}"
-}
-
-# Usage: gwt-create [-l | -b <branch>] <name>
-# Default: creates from default branch. Use -l for current branch, -b for specific branch.
 gwt-create() {
   _gwt_require_repo || return 1
 
-  local base_branch="" wt_name="" use_local=false
+  local base="" name="" local_branch=false
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -h|--help) _gwt_help; return 0 ;;
-      -l|--local) use_local=true; shift ;;
-      -b) base_branch="$2"; shift 2 ;;
-      *)  wt_name="$1"; shift ;;
+      -h|--help)  _gwt_help; return 0 ;;
+      -l|--local) local_branch=true; shift ;;
+      -b)         base="$2"; shift 2 ;;
+      *)          name="$1"; shift ;;
     esac
   done
 
-  if [[ -z "$wt_name" ]]; then
+  [[ -z "$name" ]] && {
     echo "Usage: gwt-create [-l | -b <branch>] <name>" >&2
-    echo "       -l    Create from current branch (default: $(_gwt_default_branch))" >&2
-    echo "       -b    Create from specific branch" >&2
     return 1
-  fi
+  }
 
   # Determine base branch
-  if [[ "$use_local" == true ]]; then
-    base_branch=$(git branch --show-current)
-  elif [[ -z "$base_branch" ]]; then
-    base_branch=$(_gwt_default_branch)
+  if $local_branch; then
+    base=$(git branch --show-current)
+  elif [[ -z "$base" ]]; then
+    base=$(_gwt_default_branch)
   fi
 
-  # Check if branch is already checked out in another worktree
-  if git worktree list | grep -q "\[$wt_name\]"; then
-    echo "Error: Branch '$wt_name' is already checked out in another worktree:" >&2
-    git worktree list | grep "\[$wt_name\]" >&2
+  # Check if already checked out
+  git worktree list | grep -q "\[$name\]" && {
+    echo "Error: Branch '$name' already checked out in another worktree" >&2
     return 1
-  fi
+  }
 
-  # Get original repo name (first worktree is always the main repo)
-  local repo_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
-  local repo_name=$(basename "$repo_root")
-  local dir_name="${wt_name//\//-}"
-  local worktree_base="$HOME/.claude-worktrees/${repo_name}"
-  local worktree_path="${worktree_base}/${dir_name}"
+  local wt_path=$(_gwt_worktree_path "$name")
+  mkdir -p "$(dirname "$wt_path")"
 
-  mkdir -p "$worktree_base"
-
-  if [[ -d "$worktree_path" ]]; then
-    echo "Worktree already exists at: $worktree_path"
-    echo "Opening Claude Code..."
-    cd "$worktree_path" && claude
+  # Reuse existing worktree
+  [[ -d "$wt_path" ]] && {
+    echo "Worktree exists: $wt_path"
+    cd "$wt_path" && claude
     return 0
-  fi
+  }
 
-  echo "Creating worktree at: $worktree_path (from $base_branch)"
-  if git show-ref --verify --quiet "refs/heads/$wt_name"; then
-    git worktree add "$worktree_path" "$wt_name"
+  # Create worktree
+  echo "Creating: $wt_path (from $base)"
+  if git show-ref --verify --quiet "refs/heads/$name"; then
+    git worktree add "$wt_path" "$name"
   else
-    git worktree add -b "$wt_name" "$worktree_path" "$base_branch"
-  fi
+    git worktree add -b "$name" "$wt_path" "$base"
+  fi || { echo "Error: Failed to create worktree" >&2; return 1; }
 
-  if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to create worktree" >&2
-    return 1
-  fi
+  cd "$wt_path"
 
-  cd "$worktree_path"
-
-  # Auto-detect and prompt for dependency installation
-  if [[ -f "package.json" ]]; then
+  # Optional: install dependencies
+  [[ -f "package.json" ]] && {
     echo "Found package.json. Install dependencies? [y/N]"
     read -r response
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-      echo "Installing dependencies..."
-      npm install
-    fi
-  fi
+    [[ "$response" =~ ^[Yy]$ ]] && npm install
+  }
 
-  echo "Opening Claude Code in worktree..."
+  echo "Opening Claude Code..."
   claude
 }
 
-# Usage: gwt-list
 gwt-list() {
   [[ "$1" == "-h" || "$1" == "--help" ]] && { _gwt_help; return 0; }
   _gwt_require_repo || return 1
 
-  local current_dir=$(pwd)
-  echo "\033[1mGit Worktrees:\033[0m"
-  echo ""
+  local cwd=$(pwd)
+  echo "\033[1mGit Worktrees:\033[0m\n"
 
-  local wt_path head_line branch_line branch
-  git worktree list --porcelain | while read line; do
+  local porcelain=$(git worktree list --porcelain)
+  local path="" branch="" head_line="" branch_line=""
+
+  while IFS= read -r line; do
     if [[ "$line" == worktree* ]]; then
-      wt_path="${line#worktree }"
-      read head_line  # HEAD <sha>
-      read branch_line  # branch refs/heads/... or detached
-
+      path="${line#worktree }"
+      read -r head_line
+      read -r branch_line
       if [[ "$branch_line" == branch* ]]; then
         branch="${branch_line#branch refs/heads/}"
       else
         branch="(detached)"
       fi
 
-      if [[ "$current_dir" == "$wt_path"* ]]; then
-        echo "  \033[32m→ $branch\033[0m"
-        echo "    $wt_path"
+      if [[ "$cwd" == "$path"* ]]; then
+        echo "  \033[32m→ $branch\033[0m\n    $path\n"
       else
-        echo "  \033[34m$branch\033[0m"
-        echo "    $wt_path"
+        echo "  \033[34m$branch\033[0m\n    $path\n"
       fi
-      echo ""
     fi
-  done
+  done <<< "$porcelain"
 }
 
-# Usage: gwt-remove [-f] <branch>
-gwt-remove() {
-  _gwt_require_repo || return 1
-
-  local force=false search_branch=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -h|--help) _gwt_help; return 0 ;;
-      -f|--force) force=true; shift ;;
-      *)          search_branch="$1"; shift ;;
-    esac
-  done
-
-  if [[ -z "$search_branch" ]]; then
-    echo "Usage: gwt-remove [-f] <branch>" >&2
-    echo "       -f    Force remove (skip confirmation + dirty worktrees)" >&2
-    echo "" >&2
-    echo "Available worktrees:" >&2
-    gwt-list
-    return 1
-  fi
-
-  local worktree_path=$(_gwt_find_path "$search_branch") || return 1
-
-  # Prevent removing main repository
-  local main_repo=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
-  if [[ "$worktree_path" == "$main_repo" ]]; then
-    echo "Error: Cannot remove main repository" >&2
-    return 1
-  fi
-
-  # Prevent removing current worktree
-  if [[ "$(pwd)" == "$worktree_path"* ]]; then
-    echo "Error: Cannot remove current worktree. Switch to another first." >&2
-    return 1
-  fi
-
-  # Check for uncommitted changes
-  if [[ -n $(git -C "$worktree_path" status --porcelain 2>/dev/null) ]]; then
-    echo "Warning: Worktree has uncommitted changes" >&2
-    if [[ "$force" != true ]]; then
-      echo "Use -f to force removal" >&2
-      return 1
-    fi
-  fi
-
-  if [[ "$force" != true ]]; then
-    echo "Remove worktree at: $worktree_path? [y/N]"
-    read -r response
-    [[ ! "$response" =~ ^[Yy]$ ]] && echo "Cancelled" && return 0
-  fi
-
-  if git worktree remove --force "$worktree_path"; then
-    echo "Worktree removed: $worktree_path"
-    git worktree prune
-  else
-    echo "Error: Failed to remove worktree" >&2
-    return 1
-  fi
-}
-
-# Usage: gwt-switch <branch>
 gwt-switch() {
   _gwt_require_repo || return 1
 
-  local search_branch=""
+  local branch=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help) _gwt_help; return 0 ;;
-      *)         search_branch="$1"; shift ;;
+      *)         branch="$1"; shift ;;
     esac
   done
 
-  if [[ -z "$search_branch" ]]; then
+  [[ -z "$branch" ]] && {
     echo "Usage: gwt-switch <branch>" >&2
-    echo "" >&2
-    echo "Available worktrees:" >&2
     gwt-list
     return 1
-  fi
+  }
 
-  local worktree_path=$(_gwt_find_path "$search_branch") || return 1
-
-  cd "$worktree_path"
-  echo "Switched to: $worktree_path"
+  local wt_path=$(_gwt_find_path "$branch") || return 1
+  cd "$wt_path"
+  echo "Switched to: $wt_path"
   echo "Opening Claude Code..."
   claude
 }
 
-# ─────────────────────────────────────────────────────────────
-# Zsh Completions
-# ─────────────────────────────────────────────────────────────
+gwt-remove() {
+  _gwt_require_repo || return 1
 
-# Completion helper: list worktree branch names
+  local force=false branch=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)  _gwt_help; return 0 ;;
+      -f|--force) force=true; shift ;;
+      *)          branch="$1"; shift ;;
+    esac
+  done
+
+  [[ -z "$branch" ]] && {
+    echo "Usage: gwt-remove [-f] <branch>" >&2
+    gwt-list
+    return 1
+  }
+
+  local wt_path=$(_gwt_find_path "$branch") || return 1
+  local main=$(_gwt_main_repo)
+
+  # Safety checks
+  [[ "$wt_path" == "$main" ]] && {
+    echo "Error: Cannot remove main repository" >&2
+    return 1
+  }
+  [[ "$(pwd)" == "$wt_path"* ]] && {
+    echo "Error: Cannot remove current worktree. Switch first." >&2
+    return 1
+  }
+
+  # Dirty check
+  [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]] && ! $force && {
+    echo "Warning: Uncommitted changes. Use -f to force." >&2
+    return 1
+  }
+
+  # Confirmation
+  ! $force && {
+    echo "Remove $wt_path? [y/N]"
+    read -r response
+    [[ ! "$response" =~ ^[Yy]$ ]] && { echo "Cancelled"; return 0; }
+  }
+
+  git worktree remove --force "$wt_path" && {
+    echo "Removed: $wt_path"
+    git worktree prune
+  } || { echo "Error: Failed to remove" >&2; return 1; }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Zsh Completions
+# ─────────────────────────────────────────────────────────────────────────────
+
 _gwt_branches() {
   local branches=()
+  local porcelain=$(git worktree list --porcelain 2>/dev/null)
   while IFS= read -r line; do
-    if [[ "$line" == branch* ]]; then
-      branches+=("${line#branch refs/heads/}")
-    fi
-  done < <(git worktree list --porcelain 2>/dev/null)
-  _describe 'worktree branches' branches
+    [[ "$line" == branch* ]] && branches+=("${line#branch refs/heads/}")
+  done <<< "$porcelain"
+  _describe 'branches' branches
 }
 
-# Completion helper: list all git branches (for -b flag)
 _gwt_git_branches() {
   local branches=(${(f)"$(git branch -a --format='%(refname:short)' 2>/dev/null)"})
-  _describe 'git branches' branches
+  _describe 'branches' branches
 }
 
-# gwt-create completion
 _gwt-create() {
-  _arguments \
-    '-h[Show help]' \
-    '--help[Show help]' \
-    '-l[Create from current branch]' \
-    '--local[Create from current branch]' \
-    '-b[Base branch]:branch:_gwt_git_branches' \
-    '1:name:'
+  _arguments '-h[Help]' '--help[Help]' '-l[Local branch]' '--local[Local branch]' \
+    '-b[Base branch]:branch:_gwt_git_branches' '1:name:'
 }
 
-# gwt-switch completion
 _gwt-switch() {
-  _arguments \
-    '-h[Show help]' \
-    '--help[Show help]' \
-    '1:branch:_gwt_branches'
+  _arguments '-h[Help]' '--help[Help]' '1:branch:_gwt_branches'
 }
 
-# gwt-remove completion
 _gwt-remove() {
-  _arguments \
-    '-h[Show help]' \
-    '--help[Show help]' \
-    '-f[Force remove]' \
-    '--force[Force remove]' \
-    '1:branch:_gwt_branches'
+  _arguments '-h[Help]' '--help[Help]' '-f[Force]' '--force[Force]' '1:branch:_gwt_branches'
 }
 
-# Register completions (only in interactive shells with completion loaded)
-if [[ -n "$ZSH_VERSION" ]] && (( $+functions[compdef] )); then
+# Register completions
+[[ -n "$ZSH_VERSION" ]] && (( $+functions[compdef] )) && {
   compdef _gwt-create gwt-create 2>/dev/null
   compdef _gwt-switch gwt-switch 2>/dev/null
   compdef _gwt-remove gwt-remove 2>/dev/null
-fi
+}
