@@ -51,7 +51,7 @@ gwt-create -l <name>        # Create from current branch (-l = local)
 gwt-create -b dev <name>    # Create from specific branch
                             # Auto-prompts for npm install if package.json found
 gwt-list                    # List all worktrees
-gwt-switch <branch>         # Switch to worktree by branch name
+gwt-switch <branch>         # Switch to worktree + open Claude Code
 gwt-remove <branch>         # Remove worktree (with confirmation)
 gwt-remove -f <branch>      # Force remove
 ```

@@ -26,7 +26,7 @@ Commands:
 
   gwt-list                               List all worktrees
 
-  gwt-switch <branch>                    Switch to worktree by branch name
+  gwt-switch <branch>                    Switch to worktree + open Claude Code
 
   gwt-remove [-f] <branch>               Remove worktree by branch name
     -f, --force    Skip confirmation + remove dirty worktrees
