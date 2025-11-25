@@ -56,7 +56,7 @@ gwt-remove <branch>         # Remove worktree (with confirmation)
 gwt-remove -f <branch>      # Force remove
 ```
 
-All commands support `-h` / `--help`.
+All commands support `-h` / `--help` and **tab completion** for branch names.
 
 ## Storage
 

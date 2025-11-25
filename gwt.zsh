@@ -284,3 +284,60 @@ gwt-switch() {
   echo "Opening Claude Code..."
   claude
 }
+
+# ─────────────────────────────────────────────────────────────
+# Zsh Completions
+# ─────────────────────────────────────────────────────────────
+
+# Completion helper: list worktree branch names
+_gwt_branches() {
+  local branches=()
+  while IFS= read -r line; do
+    if [[ "$line" == branch* ]]; then
+      branches+=("${line#branch refs/heads/}")
+    fi
+  done < <(git worktree list --porcelain 2>/dev/null)
+  _describe 'worktree branches' branches
+}
+
+# Completion helper: list all git branches (for -b flag)
+_gwt_git_branches() {
+  local branches=(${(f)"$(git branch -a --format='%(refname:short)' 2>/dev/null)"})
+  _describe 'git branches' branches
+}
+
+# gwt-create completion
+_gwt-create() {
+  _arguments \
+    '-h[Show help]' \
+    '--help[Show help]' \
+    '-l[Create from current branch]' \
+    '--local[Create from current branch]' \
+    '-b[Base branch]:branch:_gwt_git_branches' \
+    '1:name:'
+}
+
+# gwt-switch completion
+_gwt-switch() {
+  _arguments \
+    '-h[Show help]' \
+    '--help[Show help]' \
+    '1:branch:_gwt_branches'
+}
+
+# gwt-remove completion
+_gwt-remove() {
+  _arguments \
+    '-h[Show help]' \
+    '--help[Show help]' \
+    '-f[Force remove]' \
+    '--force[Force remove]' \
+    '1:branch:_gwt_branches'
+}
+
+# Register completions (only in interactive shells with completion loaded)
+if [[ -n "$ZSH_VERSION" ]] && (( $+functions[compdef] )); then
+  compdef _gwt-create gwt-create 2>/dev/null
+  compdef _gwt-switch gwt-switch 2>/dev/null
+  compdef _gwt-remove gwt-remove 2>/dev/null
+fi
