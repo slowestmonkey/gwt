@@ -79,7 +79,7 @@ _gwt_find_path() {
     return 1
   fi
 
-  echo "${found_paths[0]}"
+  echo "${found_paths[1]}"
 }
 
 # Usage: gwt-create [-l | -b <branch>] <name>
