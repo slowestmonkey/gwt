@@ -1,8 +1,8 @@
 # gwt-claude
 
-**Run multiple Claude Code sessions on different branches without the brain damage.**
+**Run multiple Claude Code CLI sessions on different branches without conflicts.**
 
-We don't need a "Next-Gen AI IDE" that eats 16GB of RAM just to edit a string. We just need Git worktrees to isolate the context, and Claude Code to do the heavy lifting.
+We don't need a "Next-Gen AI IDE" that tries to reinvent everything. Claude Code CLI is already excellent at what it does! The only missing piece is session isolation.
 
 ### The Math
 
