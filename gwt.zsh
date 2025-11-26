@@ -67,14 +67,15 @@ COMMANDS
   gwt-create [-l|-b <branch>] [-d] <name>   Create worktree + open Claude Code
   gwt-list                                  List all worktrees
   gwt-switch [-d] <branch>                  Switch to worktree + open Claude Code
-  gwt-remove [-f] <branch>                  Remove worktree
+  gwt-remove [-f] [-k] <branch>             Remove worktree and branch
 
 OPTIONS
-  -l, --local      Create from current branch (default: main/master)
-  -b <branch>      Create from specific branch
-  -d, --dangerous  Run Claude with --dangerously-skip-permissions
-  -f, --force      Skip confirmation, remove dirty worktrees
-  -h, --help       Show this help
+  -l, --local        Create from current branch (default: main/master)
+  -b <branch>        Create from specific branch
+  -d, --dangerous    Run Claude with --dangerously-skip-permissions
+  -f, --force        Skip confirmation, remove dirty worktrees
+  -k, --keep-branch  Keep the branch when removing worktree
+  -h, --help         Show this help
 
 STORAGE
   ~/.claude-worktrees/{repo}/{branch}
@@ -207,17 +208,18 @@ gwt-switch() {
 gwt-remove() {
   _gwt_require_repo || return 1
 
-  local force=false branch=""
+  local force=false keep_branch=false branch=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -h|--help)  _gwt_help; return 0 ;;
-      -f|--force) force=true; shift ;;
-      *)          branch="$1"; shift ;;
+      -h|--help)        _gwt_help; return 0 ;;
+      -f|--force)       force=true; shift ;;
+      -k|--keep-branch) keep_branch=true; shift ;;
+      *)                branch="$1"; shift ;;
     esac
   done
 
   [[ -z "$branch" ]] && {
-    echo "Usage: gwt-remove [-f] <branch>" >&2
+    echo "Usage: gwt-remove [-f] [-k] <branch>" >&2
     gwt-list
     return 1
   }
@@ -235,6 +237,18 @@ gwt-remove() {
     return 1
   }
 
+  # Extract branch name before removal
+  local branch_to_delete=""
+  local porcelain=$(git worktree list --porcelain)
+  local wt="" br=""
+  while IFS= read -r line; do
+    [[ "$line" == worktree* ]] && wt="${line#worktree }"
+    [[ "$line" == branch* ]] && {
+      br="${line#branch refs/heads/}"
+      [[ "$wt" == "$wt_path" ]] && branch_to_delete="$br"
+    }
+  done <<< "$porcelain"
+
   # Dirty check
   [[ -n $(git -C "$wt_path" status --porcelain 2>/dev/null) ]] && ! $force && {
     echo "Warning: Uncommitted changes. Use -f to force." >&2
@@ -251,6 +265,14 @@ gwt-remove() {
   git worktree remove --force "$wt_path" && {
     echo "Removed: $wt_path"
     git worktree prune
+
+    # Delete branch unless -k flag or protected branch
+    if ! $keep_branch && [[ -n "$branch_to_delete" ]]; then
+      local default=$(_gwt_default_branch)
+      if [[ "$branch_to_delete" != "$default" && "$branch_to_delete" != "main" && "$branch_to_delete" != "master" ]]; then
+        git branch -D "$branch_to_delete" 2>/dev/null && echo "Deleted branch: $branch_to_delete"
+      fi
+    fi
   } || { echo "Error: Failed to remove" >&2; return 1; }
 }
 
@@ -284,7 +306,8 @@ _gwt-switch() {
 }
 
 _gwt-remove() {
-  _arguments '-h[Help]' '--help[Help]' '-f[Force]' '--force[Force]' '1:branch:_gwt_branches'
+  _arguments '-h[Help]' '--help[Help]' '-f[Force]' '--force[Force]' \
+    '-k[Keep branch]' '--keep-branch[Keep branch]' '1:branch:_gwt_branches'
 }
 
 # Register completions
