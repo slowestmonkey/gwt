@@ -4,8 +4,27 @@
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+GWT_ALLOWED_TOOLS=(
+  "Read" "Edit" "Write" "Grep" "Glob"
+  "Bash(git:*)" "Bash(npm:*)" "Bash(ls:*)" "Bash(cat:*)"
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Private Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+_gwt_launch_claude() {
+  local mode=$1  # "default", "safe", or "dangerous"
+  echo "Opening Claude Code..."
+  case "$mode" in
+    dangerous) claude --dangerously-skip-permissions ;;
+    safe)      claude --allowedTools "${GWT_ALLOWED_TOOLS[@]}" ;;
+    *)         claude ;;
+  esac
+}
 
 _gwt_require_repo() {
   git rev-parse --is-inside-work-tree &>/dev/null || {
@@ -64,18 +83,22 @@ _gwt_help() {
 gwt-claude - Git worktree manager for parallel Claude Code sessions
 
 COMMANDS
-  gwt-create [-l|-b <branch>] [-d] <name>   Create worktree + open Claude Code
-  gwt-list                                  List all worktrees
-  gwt-switch [-d] <branch>                  Switch to worktree + open Claude Code
-  gwt-remove [-f] [-k] <branch>             Remove worktree and branch
+  gwt-create [-l|-b <branch>] [-d|-s] <name>   Create worktree + open Claude
+  gwt-list                                     List all worktrees
+  gwt-switch [-d|-s] <branch>                  Switch to worktree + open Claude
+  gwt-remove [-f] [-k] <branch>                Remove worktree and branch
 
 OPTIONS
   -l, --local        Create from current branch (default: main/master)
   -b <branch>        Create from specific branch
-  -d, --dangerous    Run Claude with --dangerously-skip-permissions
   -f, --force        Skip confirmation, remove dirty worktrees
   -k, --keep-branch  Keep the branch when removing worktree
   -h, --help         Show this help
+
+CLAUDE MODES
+  (default)          Normal Claude (prompts for each tool)
+  -s, --safe         Restricted tools: Read, Edit, Write, Grep, Glob, git, npm, ls, cat
+  -d, --dangerous    Skip ALL permission prompts (--dangerously-skip-permissions)
 
 STORAGE
   ~/.claude-worktrees/{repo}/{branch}
@@ -89,12 +112,13 @@ EOF
 gwt-create() {
   _gwt_require_repo || return 1
 
-  local base="" name="" local_branch=false dangerous=false
+  local base="" name="" local_branch=false mode="default"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)      _gwt_help; return 0 ;;
       -l|--local)     local_branch=true; shift ;;
-      -d|--dangerous) dangerous=true; shift ;;
+      -d|--dangerous) mode="dangerous"; shift ;;
+      -s|--safe)      mode="safe"; shift ;;
       -b)             base="$2"; shift 2 ;;
       *)              name="$1"; shift ;;
     esac
@@ -125,7 +149,7 @@ gwt-create() {
   [[ -d "$wt_path" ]] && {
     echo "Worktree exists: $wt_path"
     cd "$wt_path"
-    $dangerous && claude --dangerously-skip-permissions || claude
+    _gwt_launch_claude $mode
     return 0
   }
 
@@ -146,8 +170,7 @@ gwt-create() {
     [[ "$response" =~ ^[Yy]$ ]] && npm install
   }
 
-  echo "Opening Claude Code..."
-  $dangerous && claude --dangerously-skip-permissions || claude
+  _gwt_launch_claude $mode
 }
 
 gwt-list() {
@@ -183,11 +206,12 @@ gwt-list() {
 gwt-switch() {
   _gwt_require_repo || return 1
 
-  local branch="" dangerous=false
+  local branch="" mode="default"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)      _gwt_help; return 0 ;;
-      -d|--dangerous) dangerous=true; shift ;;
+      -d|--dangerous) mode="dangerous"; shift ;;
+      -s|--safe)      mode="safe"; shift ;;
       *)              branch="$1"; shift ;;
     esac
   done
@@ -202,8 +226,7 @@ gwt-switch() {
   wt_path=$(_gwt_find_path "$branch") || return 1
   cd "$wt_path"
   echo "Switched to: $wt_path"
-  echo "Opening Claude Code..."
-  $dangerous && claude --dangerously-skip-permissions || claude
+  _gwt_launch_claude $mode
 }
 
 gwt-remove() {
@@ -299,12 +322,14 @@ _gwt_git_branches() {
 _gwt-create() {
   _arguments '-h[Help]' '--help[Help]' '-l[Local branch]' '--local[Local branch]' \
     '-d[Dangerous mode]' '--dangerous[Dangerous mode]' \
+    '-s[Safe mode]' '--safe[Safe mode]' \
     '-b[Base branch]:branch:_gwt_git_branches' '1:name:'
 }
 
 _gwt-switch() {
   _arguments '-h[Help]' '--help[Help]' \
-    '-d[Dangerous mode]' '--dangerous[Dangerous mode]' '1:branch:_gwt_branches'
+    '-d[Dangerous mode]' '--dangerous[Dangerous mode]' \
+    '-s[Safe mode]' '--safe[Safe mode]' '1:branch:_gwt_branches'
 }
 
 _gwt-remove() {
