@@ -120,6 +120,7 @@ gwt-create() {
       -d|--dangerous) mode="dangerous"; shift ;;
       -s|--safe)      mode="safe"; shift ;;
       -b)             base="$2"; shift 2 ;;
+      -*)             echo "Error: Unknown option '$1'" >&2; return 1 ;;
       *)              name="$1"; shift ;;
     esac
   done
@@ -229,6 +230,7 @@ gwt-switch() {
       -h|--help)      _gwt_help; return 0 ;;
       -d|--dangerous) mode="dangerous"; shift ;;
       -s|--safe)      mode="safe"; shift ;;
+      -*)             echo "Error: Unknown option '$1'" >&2; return 1 ;;
       *)              branch="$1"; shift ;;
     esac
   done
@@ -255,6 +257,7 @@ gwt-remove() {
       -h|--help)        _gwt_help; return 0 ;;
       -f|--force)       force=true; shift ;;
       -k|--keep-branch) keep_branch=true; shift ;;
+      -*)               echo "Error: Unknown option '$1'" >&2; return 1 ;;
       *)                branch="$1"; shift ;;
     esac
   done
