@@ -315,7 +315,18 @@ gwt-remove() {
     if ! $keep_branch && [[ -n "$branch_to_delete" ]]; then
       local default=$(_gwt_default_branch)
       if [[ "$branch_to_delete" != "$default" && "$branch_to_delete" != "main" && "$branch_to_delete" != "master" ]]; then
-        git branch -D "$branch_to_delete" 2>/dev/null && echo "Deleted branch: $branch_to_delete"
+        git branch -D "$branch_to_delete" 2>/dev/null && echo "Deleted local branch: $branch_to_delete"
+
+        # Check for remote branch and offer to delete
+        if git show-ref --verify --quiet "refs/remotes/origin/$branch_to_delete"; then
+          echo "Remote branch 'origin/$branch_to_delete' still exists. Delete it? [y/N]"
+          read -r response
+          if [[ "$response" =~ ^[Yy]$ ]]; then
+            git push origin --delete "$branch_to_delete" 2>/dev/null && \
+              echo "Deleted remote branch: origin/$branch_to_delete" || \
+              echo "Warning: Failed to delete remote branch" >&2
+          fi
+        fi
       fi
     fi
   } || { echo "Error: Failed to remove" >&2; return 1; }
