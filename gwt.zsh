@@ -230,51 +230,48 @@ gwt-status() {
   echo "\033[1mWorktree Status:\033[0m\n"
 
   local porcelain=$(git worktree list --porcelain)
-  local path="" branch=""
+  local wt_path="" wt_branch="" head_line="" branch_line=""
 
   while IFS= read -r line; do
     if [[ "$line" == worktree* ]]; then
-      path="${line#worktree }"
+      wt_path="${line#worktree }"
       read -r head_line
       read -r branch_line
 
       if [[ "$branch_line" == branch* ]]; then
-        branch="${branch_line#branch refs/heads/}"
+        wt_branch="${branch_line#branch refs/heads/}"
       else
-        branch="(detached)"
+        wt_branch="(detached)"
       fi
 
       # Determine status indicators
-      local indicator=""
-      local status_text=""
+      local indicator="" status_text=""
 
       # Current worktree marker
-      [[ "$cwd" == "$path"* ]] && indicator="→ "
+      [[ "$cwd" == "$wt_path"* ]] && indicator="→ "
 
       # Git status (dirty/clean)
-      local git_status=$(git -C "$path" status --porcelain 2>/dev/null)
-      if [[ -n "$git_status" ]]; then
+      if [[ -n "$(git -C "$wt_path" status --porcelain 2>/dev/null)" ]]; then
         status_text="\033[33m●\033[0m dirty"
       else
         status_text="\033[32m●\033[0m clean"
       fi
 
       # Check ahead/behind
-      local upstream=$(git -C "$path" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
-      if [[ -n "$upstream" ]]; then
-        local ahead=$(git -C "$path" rev-list --count '@{upstream}..HEAD' 2>/dev/null)
-        local behind=$(git -C "$path" rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
+      if git -C "$wt_path" rev-parse --abbrev-ref '@{upstream}' &>/dev/null; then
+        local ahead=$(git -C "$wt_path" rev-list --count '@{upstream}..HEAD' 2>/dev/null)
+        local behind=$(git -C "$wt_path" rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
         [[ "$ahead" -gt 0 ]] && status_text="$status_text ↑$ahead"
         [[ "$behind" -gt 0 ]] && status_text="$status_text ↓$behind"
       fi
 
       # Print entry
       if [[ -n "$indicator" ]]; then
-        echo "  \033[32m$indicator$branch\033[0m  $status_text"
+        echo "  \033[32m$indicator$wt_branch\033[0m  $status_text"
       else
-        echo "  \033[34m$branch\033[0m  $status_text"
+        echo "  \033[34m$wt_branch\033[0m  $status_text"
       fi
-      echo "    $path\n"
+      echo "    $wt_path\n"
     fi
   done <<< "$porcelain"
 }
