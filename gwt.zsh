@@ -35,6 +35,7 @@ _gwt_require_repo() {
 
 _gwt_main_repo()      { git worktree list --porcelain | head -1 | sed 's/^worktree //'; }
 _gwt_default_branch() { git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main"; }
+_gwt_display_path()   { echo "${1/#$HOME/~}"; }
 
 _gwt_worktree_path() {
   local branch_name="$1"
@@ -140,14 +141,14 @@ gwt-create() {
 
   # Reuse existing worktree
   if [[ -d "$wt_path" ]]; then
-    echo "Worktree exists: $wt_path"
+    echo "Worktree exists: $(_gwt_display_path "$wt_path")"
     cd "$wt_path"
     _gwt_launch_claude $mode
     return 0
   fi
 
   # Create worktree
-  echo "Creating: $wt_path (from $base)"
+  echo "Creating: $(_gwt_display_path "$wt_path") (from $base)"
   if git show-ref --verify --quiet "refs/heads/$name"; then
     git worktree add "$wt_path" "$name"
   else
@@ -223,7 +224,7 @@ gwt-list() {
       else
         echo "  \033[34m$wt_branch\033[0m  $status_text"
       fi
-      echo "    $wt_path\n"
+      echo "    $(_gwt_display_path "$wt_path")\n"
     fi
   done <<< "$(git worktree list --porcelain)"
 }
@@ -248,7 +249,7 @@ gwt-switch() {
   local wt_path
   wt_path=$(_gwt_find_path "$wt_branch") || return 1
   cd "$wt_path"
-  echo "Switched to: $wt_path"
+  echo "Switched to: $(_gwt_display_path "$wt_path")"
   _gwt_launch_claude $mode
 }
 
@@ -301,14 +302,14 @@ gwt-remove() {
 
   # Confirm
   ! $force && {
-    echo "Remove $wt_path? [y/N]"
+    echo "Remove $(_gwt_display_path "$wt_path")? [y/N]"
     read -r response
     [[ ! "$response" =~ ^[Yy]$ ]] && { echo "Cancelled"; return 0; }
   }
 
   # Remove worktree
   git worktree remove --force "$wt_path" || { echo "Error: Failed to remove" >&2; return 1; }
-  echo "Removed: $wt_path"
+  echo "Removed: $(_gwt_display_path "$wt_path")"
   git worktree prune
 
   # Delete branch
