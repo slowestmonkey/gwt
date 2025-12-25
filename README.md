@@ -2,7 +2,7 @@
 
 Run multiple Claude Code sessions on different branches. No conflicts.
 
-> [Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's CLI agent that writes and edits code in your terminal.
+> [Claude Code](https://code.claude.com/docs) is Anthropic's CLI agent that writes and edits code in your terminal.
 
 **zsh only.**
 
@@ -75,7 +75,7 @@ All commands: `-h` for help, tab completion supported.
 ## 🦔 Limitations
 
 - **zsh only** — Bash support not yet available
-- **Requires Claude Code** — Install from [Anthropic](https://docs.anthropic.com/en/docs/claude-code)
+- **Requires Claude Code** — Install from [Anthropic](https://code.claude.com/docs/en/setup)
 - **Disk space** — Each worktree is a full checkout
 - **macOS/Linux** — No Windows support
 
