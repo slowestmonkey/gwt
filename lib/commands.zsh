@@ -234,14 +234,15 @@ _gwt_cmd_clean() {
 
   local removed=0
   for item in "${to_remove[@]}"; do
-    local path="${item%%:*}"
-    local branch="${item#*:}"
+    local wt_rm_path="${item%%:*}"
+    local wt_rm_branch="${item#*:}"
     
-    if git worktree remove --force "$path" 2>/dev/null; then
-      echo "Removed: $path"
+    if git worktree remove --force "$wt_rm_path" 2>/dev/null; then
+      echo "Removed: $wt_rm_path"
       ((removed++))
-      [[ -n "$branch" ]] && ! _gwt_is_protected "$branch" && \
-        git branch -D "$branch" 2>/dev/null && echo "Deleted branch: $branch"
+      if [[ -n "$wt_rm_branch" ]] && ! _gwt_is_protected "$wt_rm_branch"; then
+        git branch -D "$wt_rm_branch" 2>/dev/null && echo "Deleted branch: $wt_rm_branch"
+      fi
     fi
   done
 
