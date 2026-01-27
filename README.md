@@ -4,32 +4,20 @@ Run multiple AI coding sessions on different branches. No conflicts.
 
 ![DEMO](https://github.com/slowestmonkey/gwt-claude/blob/db0afca89bfc2b4acb0eb5a7187cc9c4673fa5af/docs/demo.gif?raw=true)
 
-**Before (every time):**
-`cd project && git stash && git checkout fix && opencode` — stash conflicts, context lost
+**Before:** `git stash && git checkout fix && claude` — conflicts, context lost
 
-**After (once):**
-`gwt-create bugfix-y` — parallel session, isolated
+**After:** `gwt create bugfix-y` — parallel session, isolated
 
 ## 🐙 Why
 
-AI coding assistants are tied to your working directory. Want to build a feature while fixing a bug? You're stuck switching branches and losing context.
+AI assistants are tied to your working directory. `gwt` wraps git worktrees to give each task its own directory + AI session.
 
-`gwt` wraps git worktrees to give each task its own directory + AI session. You also get:
+- Auto-launches your AI assistant
+- Copies `.env`, prompts `npm install`
+- Tab completion, session tracking
+- Works with Claude, OpenCode, Aider, Cursor
 
-- Auto-launches your AI assistant in each worktree
-- Copies `.env` from main repo
-- Prompts `npm install` when needed
-- Safe mode (`-s`) for read/edit/git only
-- Tab completion for branch names
-- One command to remove worktree + branches
-
-## 🦊 Requirements
-
-- zsh
-- [OpenCode](https://github.com/anomalyco/opencode), [Claude Code](https://claude.ai/code), or another AI assistant
-- macOS or Linux
-
-## 🦚 Install
+## 🦊 Install
 
 ```bash
 git clone https://github.com/slowestmonkey/gwt-claude.git ~/.gwt-claude
@@ -37,66 +25,61 @@ echo 'source ~/.gwt-claude/gwt.zsh' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-> Each worktree is a full checkout — plan for disk space accordingly.
-
-## 🦜 First Run
-
-On first use, `gwt` detects installed AI assistants and prompts you to choose:
-
-```
-Select your AI coding assistant:
-
-  1) Claude Code (claude)
-  2) OpenCode (opencode)
-
-Enter choice [1-2]: 2
-
-Selected: OpenCode
-Save to config (~/.config/gwt/config)? [Y/n]: y
-Saved! You won't be asked again.
-```
-
 ## 🦩 Commands
 
 ```bash
-gwt-create <name>           # Create worktree + open AI assistant
-gwt-create -l <name>        # Create from current branch
-gwt-create -b dev <name>    # Create from specific branch
-gwt-list                    # List worktrees with status
-gwt-switch <branch>         # Jump to worktree + open AI assistant
-gwt-remove <branch>         # Remove worktree + delete branch
-gwt-remove -k <branch>      # Remove worktree, keep branch
-gwt-remove -f <branch>      # Force remove
-gwt-providers               # List providers + interactive selection
-gwt-providers opencode      # Set provider directly
+gwt create <name>           # Create worktree + launch AI
+gwt create -l <name>        # From current branch
+gwt create -b dev <name>    # From specific branch
+
+gwt list                    # List worktrees (alias: ls)
+gwt switch <branch>         # Switch + launch AI
+gwt switch -n <branch>      # Switch only (no AI)
+
+gwt remove <branch>         # Remove worktree + branch (alias: rm)
+gwt remove -k <branch>      # Keep branch
+gwt clean                   # Remove all clean worktrees
+
+gwt config                  # Show config
+gwt config provider claude  # Set provider
+gwt config edit             # Edit config file
 ```
 
-All commands: `-h` for help, tab completion supported.
+**Flags:** `-s` safe mode, `-d` dangerous mode, `-f` force, `-h` help
 
-## 🦎 Supported Providers
+## 🦚 Providers
 
-| Provider | Command | Safe Mode | Dangerous Mode |
-|----------|---------|-----------|----------------|
-| Claude Code | `claude` | `-s` | `-d` |
-| OpenCode | `opencode` | - | - |
-| Aider | `aider` | - | - |
-| Cursor | `cursor` | - | - |
+| Provider | Command | Safe/Dangerous |
+|----------|---------|----------------|
+| Claude Code | `claude` | Yes |
+| OpenCode | `opencode` | No |
+| Aider | `aider` | No |
+| Cursor | `cursor` | No |
 
-## 🐠 Configuration
+First run auto-detects installed providers.
+
+## 🦎 Config
 
 ```bash
-# Via environment variable
+# Set provider
+gwt config provider opencode
+
+# Or edit directly
+gwt config edit
+
+# Or environment variable
 export GWT_PROVIDER=opencode
-
-# Or via config file (~/.config/gwt/config)
-GWT_PROVIDER=opencode
 ```
 
-### Adding Custom Providers
+**Config locations:** `./.gwt.conf` > `~/.config/gwt/config` > `~/.gwt.conf`
+
+### Custom Providers
 
 ```bash
-# Format: GWT_PROVIDERS[name]="command|safe_flags|dangerous_flags|display_name"
-GWT_PROVIDERS[my-ai]="my-ai-cli|--restricted|--no-confirm|My AI Tool"
+# In ~/.config/gwt/providers.d/myai.zsh
+GWT_PROVIDERS[myai]="myai-cli|||My AI Tool"
 ```
 
-See `gwt.conf.example` for a full configuration reference.
+## 🐠 License
+
+MIT

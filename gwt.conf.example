@@ -1,33 +1,67 @@
-# gwt - Git Worktree Manager Configuration
-# Copy this file to one of:
-#   ./.gwt.conf           (project-specific)
-#   ~/.config/gwt/config  (user global)
-#   ~/.gwt.conf           (user global, legacy)
+# ─────────────────────────────────────────────────────────────────────────────
+# GWT Configuration File
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Copy this file to one of these locations (in priority order):
+#   1. ./.gwt.conf           - Project-specific config
+#   2. ~/.config/gwt/config  - User global config (recommended)
+#   3. ~/.gwt.conf           - User global config (legacy)
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Provider Selection
+# Provider Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-# Set the default AI assistant to launch with worktrees
-# Options: claude, opencode, aider, cursor, or any custom provider
+
+# Set the default AI coding assistant
+# Options: claude, opencode, aider, cursor (or any custom provider)
 GWT_PROVIDER=claude
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Debug Mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Enable debug output (shows internal operations)
+# Set to 1 to enable, 0 to disable
+# GWT_DEBUG=0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Custom Providers
 # ─────────────────────────────────────────────────────────────────────────────
-# Add custom providers using the format:
-# GWT_PROVIDERS[name]="command|safe_flags|dangerous_flags|display_name"
 #
-# Example: Add a custom local AI assistant
-# GWT_PROVIDERS[my-ai]="my-ai-cli|--restricted|--no-confirm|My AI Tool"
+# You can define custom providers here or in ~/.config/gwt/providers.d/*.zsh
 #
-# Example: Add Codex CLI
-# GWT_PROVIDERS[codex]="codex|||Codex CLI"
+# Format: GWT_PROVIDERS[name]="command|safe_flags|dangerous_flags|Display Name"
+#
+# Fields:
+#   - command: The CLI command to run
+#   - safe_flags: Flags for restricted/safe mode (optional)
+#   - dangerous_flags: Flags to skip all prompts (optional)
+#   - Display Name: Human-readable name
+#
+# Examples:
+#
+# # Provider with no special flags
+# GWT_PROVIDERS[myai]="myai-cli|||My AI Tool"
+#
+# # Provider with safe mode only
+# GWT_PROVIDERS[safeai]="safeai|--restricted||Safe AI"
+#
+# # Provider with both modes
+# GWT_PROVIDERS[fullai]="fullai|--safe|--yolo|Full AI"
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Claude-specific: Safe Mode Tool Restrictions
+# Claude Code Safe Mode Tools
 # ─────────────────────────────────────────────────────────────────────────────
-# Tools allowed when running Claude in safe mode (-s flag)
+#
+# When using Claude Code with -s/--safe flag, these tools are allowed:
+#
 # GWT_ALLOWED_TOOLS=(
 #   "Read" "Edit" "Write" "Grep" "Glob"
 #   "Bash(git:*)" "Bash(npm:*)" "Bash(ls:*)" "Bash(cat:*)"
 # )
+#
+# Uncomment and modify to customize allowed tools in safe mode.
+# ─────────────────────────────────────────────────────────────────────────────
