@@ -18,6 +18,7 @@ AI assistants are tied to your working directory. `gwt` wraps git worktrees to g
 - Copies `.env`, prompts `npm install`
 - Tab completion, session tracking
 - Works with Claude, OpenCode, Aider, Cursor, any
+- **zsh only** (default on macOS, available on Linux)
 
 ## 🦊 Install
 
