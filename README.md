@@ -15,7 +15,7 @@ AI assistants are tied to your working directory. `gwt` wraps git worktrees to g
 - Auto-launches your AI assistant
 - Copies `.env`, prompts `npm install`
 - Tab completion, session tracking
-- Works with Claude, OpenCode, Aider, Cursor
+- Works with Claude, OpenCode, Aider, Cursor, any
 
 ## 🦊 Install
 
@@ -29,7 +29,7 @@ git clone https://github.com/slowestmonkey/gwt.git ~/.gwt
 echo 'source ~/.gwt/gwt.zsh' >> ~/.zshrc
 ```
 
-Then restart your shell.
+**Then restart your shell.**
 
 ## 🦩 Commands
 
