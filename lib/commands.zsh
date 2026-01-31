@@ -57,14 +57,14 @@ _gwt_cmd_create() {
 
   # Reuse existing worktree
   if [[ -d "$wt_path" ]]; then
-    echo "Worktree exists: $wt_path"
+    echo "Worktree exists: $(_gwt_display_path "$wt_path")"
     cd "$wt_path" || { echo "gwt: failed to enter worktree" >&2; return 1; }
     _gwt_launch_provider "$mode"
     return $?
   fi
 
   # Create worktree
-  echo "Creating: $wt_path (from $base)"
+  echo "Creating: $(_gwt_display_path "$wt_path") (from $base)"
   if git show-ref --verify --quiet "refs/heads/$name"; then
     git worktree add "$wt_path" "$name"
   else
@@ -144,7 +144,7 @@ _gwt_cmd_list() {
       else
         echo "  \033[34m$wt_branch\033[0m$session_indicator  $status_text"
       fi
-      echo "    $wt_path\n"
+      echo "    $(_gwt_display_path "$wt_path")\n"
     fi
   done <<< "$(git worktree list --porcelain)"
 }
@@ -178,7 +178,7 @@ _gwt_cmd_switch() {
   local wt_path
   wt_path=$(_gwt_find_path "$wt_branch") || return 1
   cd "$wt_path" || { echo "gwt: failed to enter worktree at $wt_path" >&2; return 1; }
-  echo "Switched to: $wt_path"
+  echo "Switched to: $(_gwt_display_path "$wt_path")"
   
   $no_ai || _gwt_launch_provider "$mode"
 }
@@ -238,7 +238,7 @@ _gwt_cmd_clean() {
     local wt_rm_branch="${item#*:}"
     
     if git worktree remove --force "$wt_rm_path" 2>/dev/null; then
-      echo "Removed: $wt_rm_path"
+      echo "Removed: $(_gwt_display_path "$wt_rm_path")"
       ((removed++))
       if [[ -n "$wt_rm_branch" ]] && ! _gwt_is_protected "$wt_rm_branch"; then
         git branch -D "$wt_rm_branch" 2>/dev/null && echo "Deleted branch: $wt_rm_branch"
@@ -310,7 +310,7 @@ _gwt_cmd_remove() {
   fi
 
   if ! $force; then
-    echo -n "Remove $wt_path? [y/N]: "
+    echo -n "Remove $(_gwt_display_path "$wt_path")? [y/N]: "
     read -r response
     [[ ! "$response" =~ ^[Yy]$ ]] && { echo "Cancelled"; return 0; }
   fi
@@ -319,7 +319,7 @@ _gwt_cmd_remove() {
     echo "gwt: failed to remove worktree" >&2
     return 1
   }
-  echo "Removed: $wt_path"
+  echo "Removed: $(_gwt_display_path "$wt_path")"
   git worktree prune
 
   if ! $keep_branch && [[ -n "$branch_to_delete" ]] && ! _gwt_is_protected "$branch_to_delete"; then

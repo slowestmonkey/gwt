@@ -21,6 +21,11 @@ _gwt_default_branch() {
   git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main"
 }
 
+# Display path with ~ instead of $HOME
+_gwt_display_path() {
+  echo "${1/#$HOME/~}"
+}
+
 # Sanitize branch name for filesystem use
 _gwt_sanitize_branch_name() {
   local name="$1"
