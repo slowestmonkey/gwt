@@ -137,17 +137,22 @@ _gwt_cmd_list() {
         status_text="\033[32m●\033[0m clean"
       fi
 
+      local tracking=""
       if git -C "$wt_path" rev-parse --abbrev-ref '@{upstream}' &>/dev/null; then
+        tracking=$(git -C "$wt_path" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
         local ahead=$(git -C "$wt_path" rev-list --count '@{upstream}..HEAD' 2>/dev/null)
         local behind=$(git -C "$wt_path" rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
         [[ "$ahead" -gt 0 ]] && status_text="$status_text ↑$ahead"
         [[ "$behind" -gt 0 ]] && status_text="$status_text ↓$behind"
       fi
 
+      local tracking_text=""
+      [[ -n "$tracking" ]] && tracking_text=" \033[90m← $tracking\033[0m"
+
       if [[ -n "$indicator" ]]; then
-        echo "  \033[32m$indicator$wt_branch\033[0m$session_indicator  $status_text"
+        echo "  \033[32m$indicator$wt_branch\033[0m$tracking_text$session_indicator  $status_text"
       else
-        echo "  \033[34m$wt_branch\033[0m$session_indicator  $status_text"
+        echo "  \033[34m$wt_branch\033[0m$tracking_text$session_indicator  $status_text"
       fi
       echo "    $wt_path\n"
     fi
