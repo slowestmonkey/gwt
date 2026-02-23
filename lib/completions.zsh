@@ -26,7 +26,7 @@ _gwt_remote_branches() {
       remote_branches+=("$branch_name")
     fi
   done
-  _describe 'remote branches' remote_branches
+  _describe -V 'remote branches' remote_branches
 }
 
 _gwt_git_branches() {
