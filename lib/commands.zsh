@@ -199,7 +199,12 @@ _gwt_cmd_switch() {
 
   # Fallback: try remote branch
   echo "Fetching from origin..."
-  git fetch origin 2>/dev/null || { echo "gwt: failed to fetch from origin" >&2; return 1; }
+  local fetch_output
+  fetch_output=$(git fetch origin 2>&1) || {
+    echo "gwt: failed to fetch from origin" >&2
+    [[ -n "$fetch_output" ]] && echo "$fetch_output" >&2
+    return 1
+  }
 
   local remote_branch
   remote_branch=$(_gwt_find_remote_branch "$wt_branch") || return 1
@@ -219,10 +224,19 @@ _gwt_cmd_switch() {
 
   # Create worktree tracking remote branch
   echo "Creating: $wt_path (tracking origin/$remote_branch)"
-  git worktree add --track -b "$remote_branch" "$wt_path" "origin/$remote_branch" || {
-    echo "gwt: failed to create worktree" >&2
-    return 1
-  }
+  if git show-ref --verify --quiet "refs/heads/$remote_branch"; then
+    # Local branch exists, reuse it
+    git worktree add "$wt_path" "$remote_branch" || {
+      echo "gwt: failed to create worktree" >&2
+      return 1
+    }
+    git -C "$wt_path" branch --set-upstream-to="origin/$remote_branch" 2>/dev/null
+  else
+    git worktree add --track -b "$remote_branch" "$wt_path" "origin/$remote_branch" || {
+      echo "gwt: failed to create worktree" >&2
+      return 1
+    }
+  fi
 
   cd "$wt_path" || { echo "gwt: failed to enter worktree" >&2; return 1; }
 

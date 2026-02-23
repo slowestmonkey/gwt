@@ -72,6 +72,7 @@ STATUS INDICATORS
   ●   green=clean, yellow=dirty
   ↑n  Commits ahead of remote
   ↓n  Commits behind remote
+  ←   Tracking remote branch
   ⚡  Active AI session
 EOF
 }

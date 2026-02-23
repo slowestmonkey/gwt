@@ -154,8 +154,9 @@ _gwt_find_remote_branch() {
 
   local ref
   for ref in $(git branch -r --format='%(refname:short)' 2>/dev/null); do
-    # Skip HEAD pointer
+    # Skip HEAD pointer and non-origin remotes
     [[ "$ref" == */HEAD ]] && continue
+    [[ "$ref" != origin/* ]] && continue
     # Strip "origin/" prefix for matching
     local branch_name="${ref#origin/}"
     if [[ "$branch_name" == "$search" ]]; then
