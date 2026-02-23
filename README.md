@@ -42,7 +42,7 @@ gwt create -l <name>        # From current branch
 gwt create -b dev <name>    # From specific branch
 
 gwt list                    # List worktrees (alias: ls)
-gwt switch <branch>         # Switch + launch AI
+gwt switch <branch>         # Switch + launch AI (auto-fetches remote)
 gwt switch -n <branch>      # Switch only (no AI)
 
 gwt remove <branch>         # Remove worktree + branch (alias: rm)
@@ -55,6 +55,15 @@ gwt config edit             # Edit config file
 ```
 
 **Flags:** `-s` safe mode, `-d` dangerous mode, `-f` force, `-h` help
+
+## 🦉 Review a PR
+
+```bash
+gwt switch teammate-feature    # auto-fetches and creates worktree
+gwt switch -n teammate-feature # just cd, no AI launch
+```
+
+`gwt switch` auto-detects remote branches: if no local worktree matches, it fetches from origin and creates a tracking worktree.
 
 ## 🦚 Providers
 
