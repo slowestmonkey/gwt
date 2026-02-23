@@ -2,6 +2,33 @@
 # Public Commands
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Shared post-worktree-creation setup (npm install, .env copy)
+_gwt_post_create() {
+  # Optional: install dependencies
+  [[ -f "package.json" ]] && {
+    echo -n "Found package.json. Install dependencies? [y/N]: "
+    read -r response
+    [[ "$response" =~ ^[Yy]$ ]] && npm install
+  }
+
+  # Optional: copy .env files
+  local main_repo=$(_gwt_main_repo)
+  local env_files=("${(@f)$(find "$main_repo" -maxdepth 3 -name ".env*" -type f 2>/dev/null)}")
+  if [[ ${#env_files[@]} -gt 0 && -n "${env_files[1]}" ]]; then
+    echo -n "Found ${#env_files[@]} .env file(s). Copy? [y/N]: "
+    read -r response
+    [[ "$response" =~ ^[Yy]$ ]] && {
+      for env_file in "${env_files[@]}"; do
+        local rel_path="${env_file#$main_repo/}"
+        local target_dir="$(dirname "$rel_path")"
+        [[ "$target_dir" != "." ]] && mkdir -p "$target_dir"
+        cp "$env_file" "$rel_path"
+      done
+      echo "Copied ${#env_files[@]} .env file(s)"
+    }
+  fi
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # gwt create - Create a new worktree and launch AI assistant
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -73,29 +100,7 @@ _gwt_cmd_create() {
 
   cd "$wt_path" || { echo "gwt: failed to enter worktree" >&2; return 1; }
 
-  # Optional: install dependencies
-  [[ -f "package.json" ]] && {
-    echo -n "Found package.json. Install dependencies? [y/N]: "
-    read -r response
-    [[ "$response" =~ ^[Yy]$ ]] && npm install
-  }
-
-  # Optional: copy .env files
-  local main_repo=$(_gwt_main_repo)
-  local env_files=("${(@f)$(find "$main_repo" -maxdepth 3 -name ".env*" -type f 2>/dev/null)}")
-  if [[ ${#env_files[@]} -gt 0 && -n "${env_files[1]}" ]]; then
-    echo -n "Found ${#env_files[@]} .env file(s). Copy? [y/N]: "
-    read -r response
-    [[ "$response" =~ ^[Yy]$ ]] && {
-      for env_file in "${env_files[@]}"; do
-        local rel_path="${env_file#$main_repo/}"
-        local target_dir="$(dirname "$rel_path")"
-        [[ "$target_dir" != "." ]] && mkdir -p "$target_dir"
-        cp "$env_file" "$rel_path"
-      done
-      echo "Copied ${#env_files[@]} .env file(s)"
-    }
-  fi
+  _gwt_post_create
 
   _gwt_launch_provider "$mode"
 }
