@@ -89,10 +89,15 @@ OPTIONS
   -d, --dangerous  Launch in dangerous mode
   -h, --help       Show this help
 
+REMOTE BRANCHES
+  If no local worktree matches, gwt auto-fetches from origin
+  and creates a worktree tracking the remote branch.
+
 EXAMPLES
   gwt switch feature-auth      Switch + launch AI
   gwt switch -n feature-auth   Just cd
   gwt switch feat              Partial match
+  gwt switch pr-feature        Auto-fetch remote branch
 EOF
 }
 
