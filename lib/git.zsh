@@ -146,3 +146,47 @@ _gwt_worktree_info() {
   done <<< "$(git worktree list --porcelain)"
   return 1
 }
+
+# Find remote branch by name (exact match first, then partial)
+_gwt_find_remote_branch() {
+  local search="$1"
+  local exact="" partial=()
+
+  local ref
+  for ref in $(git branch -r --format='%(refname:short)' 2>/dev/null); do
+    # Skip HEAD pointer
+    [[ "$ref" == */HEAD ]] && continue
+    # Strip "origin/" prefix for matching
+    local branch_name="${ref#origin/}"
+    if [[ "$branch_name" == "$search" ]]; then
+      exact="$branch_name"
+      break
+    elif [[ "$branch_name" == *"$search"* ]]; then
+      partial+=("$branch_name")
+    fi
+  done
+
+  if [[ -n "$exact" ]]; then
+    echo "$exact"
+    return 0
+  fi
+
+  case ${#partial[@]} in
+    0)
+      echo "gwt: no remote branch matches '$search'" >&2
+      return 1
+      ;;
+    1)
+      echo "${partial[1]}"
+      return 0
+      ;;
+    *)
+      echo "gwt: multiple remote branches match '$search':" >&2
+      for p in "${partial[@]}"; do
+        echo "  - origin/$p" >&2
+      done
+      echo "gwt: please be more specific" >&2
+      return 1
+      ;;
+  esac
+}
