@@ -187,6 +187,7 @@ _gwt_cmd_switch() {
 
   # Protected branch → go to main repo
   if _gwt_is_protected "$wt_branch"; then
+    git worktree prune 2>/dev/null
     local main_repo=$(_gwt_main_repo)
     cd "$main_repo" || { echo "gwt: failed to enter main repo at $main_repo" >&2; return 1; }
     echo "Switched to: $main_repo"
