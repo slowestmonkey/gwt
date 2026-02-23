@@ -21,8 +21,8 @@ _gwt_remote_branches() {
   for ref in $(git branch -r --sort=-committerdate --format='%(refname:short)' 2>/dev/null); do
     [[ "$ref" == */HEAD ]] && continue
     branch_name="${ref#origin/}"
-    # Skip if already a local worktree
-    if (( ! ${local_branches[(Ie)$branch_name]} )); then
+    # Skip if already a local worktree or protected
+    if (( ! ${local_branches[(Ie)$branch_name]} )) && ! _gwt_is_protected "$branch_name"; then
       remote_branches+=("$branch_name")
     fi
   done

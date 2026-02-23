@@ -197,7 +197,13 @@ _gwt_cmd_switch() {
     return $?
   fi
 
-  # Fallback: try remote branch
+  # Fallback: try remote branch (skip protected branches like main/master)
+  _gwt_is_protected "$wt_branch" && {
+    echo "gwt: no worktree matches '$wt_branch'" >&2
+    echo "gwt: use 'gwt list' to see available worktrees" >&2
+    return 1
+  }
+
   echo "Fetching from origin..."
   local fetch_output
   fetch_output=$(git fetch origin 2>&1) || {
