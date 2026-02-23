@@ -18,7 +18,7 @@ _gwt_remote_branches() {
   done <<< "$(git worktree list --porcelain 2>/dev/null)"
   # Get remote branches, excluding ones already in local worktrees
   local ref branch_name
-  for ref in $(git branch -r --format='%(refname:short)' 2>/dev/null); do
+  for ref in $(git branch -r --sort=-committerdate --format='%(refname:short)' 2>/dev/null); do
     [[ "$ref" == */HEAD ]] && continue
     branch_name="${ref#origin/}"
     # Skip if already a local worktree
