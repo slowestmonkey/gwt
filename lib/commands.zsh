@@ -173,18 +173,55 @@ _gwt_cmd_switch() {
     esac
   done
 
-  [[ -z "$wt_branch" ]] && { 
+  [[ -z "$wt_branch" ]] && {
     echo "gwt: missing branch name" >&2
     echo ""
     _gwt_cmd_list
     return 1
   }
 
+  # Try local worktree first
   local wt_path
-  wt_path=$(_gwt_find_path "$wt_branch") || return 1
-  cd "$wt_path" || { echo "gwt: failed to enter worktree at $wt_path" >&2; return 1; }
-  echo "Switched to: $wt_path"
-  
+  wt_path=$(_gwt_find_path "$wt_branch" 2>/dev/null)
+
+  if [[ -n "$wt_path" ]]; then
+    # Local worktree found
+    cd "$wt_path" || { echo "gwt: failed to enter worktree at $wt_path" >&2; return 1; }
+    echo "Switched to: $wt_path"
+    $no_ai || _gwt_launch_provider "$mode"
+    return $?
+  fi
+
+  # Fallback: try remote branch
+  echo "Fetching from origin..."
+  git fetch origin 2>/dev/null || { echo "gwt: failed to fetch from origin" >&2; return 1; }
+
+  local remote_branch
+  remote_branch=$(_gwt_find_remote_branch "$wt_branch") || return 1
+
+  echo "Creating worktree for remote branch: origin/$remote_branch"
+
+  wt_path=$(_gwt_worktree_path "$remote_branch")
+  mkdir -p "$(dirname "$wt_path")"
+
+  # Reuse existing worktree
+  if [[ -d "$wt_path" ]]; then
+    echo "Worktree exists: $wt_path"
+    cd "$wt_path" || { echo "gwt: failed to enter worktree" >&2; return 1; }
+    $no_ai || _gwt_launch_provider "$mode"
+    return $?
+  fi
+
+  # Create worktree tracking remote branch
+  echo "Creating: $wt_path (tracking origin/$remote_branch)"
+  git worktree add --track -b "$remote_branch" "$wt_path" "origin/$remote_branch" || {
+    echo "gwt: failed to create worktree" >&2
+    return 1
+  }
+
+  cd "$wt_path" || { echo "gwt: failed to enter worktree" >&2; return 1; }
+
+  _gwt_post_create
   $no_ai || _gwt_launch_provider "$mode"
 }
 
