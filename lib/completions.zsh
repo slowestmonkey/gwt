@@ -10,6 +10,25 @@ _gwt_branches() {
   _describe 'branches' branches
 }
 
+_gwt_remote_branches() {
+  local -a remote_branches local_branches
+  # Get local worktree branches
+  while IFS= read -r line; do
+    [[ "$line" == branch* ]] && local_branches+=("${line#branch refs/heads/}")
+  done <<< "$(git worktree list --porcelain 2>/dev/null)"
+  # Get remote branches, excluding ones already in local worktrees
+  local ref branch_name
+  for ref in $(git branch -r --format='%(refname:short)' 2>/dev/null); do
+    [[ "$ref" == */HEAD ]] && continue
+    branch_name="${ref#origin/}"
+    # Skip if already a local worktree
+    if (( ! ${local_branches[(Ie)$branch_name]} )); then
+      remote_branches+=("$branch_name")
+    fi
+  done
+  _describe 'remote branches' remote_branches
+}
+
 _gwt_git_branches() {
   local branches=(${(f)"$(git branch -a --format='%(refname:short)' 2>/dev/null)"})
   _describe 'branches' branches
@@ -36,7 +55,15 @@ _gwt-switch() {
     '-n[No AI]' '--no-ai[No AI]' \
     '-d[Dangerous mode]' '--dangerous[Dangerous mode]' \
     '-s[Safe mode]' '--safe[Safe mode]' \
-    '1:branch:_gwt_branches'
+    '1:branch:->branch'
+
+  case "$state" in
+    branch)
+      _alternative \
+        'local:local worktree:_gwt_branches' \
+        'remote:remote branch:_gwt_remote_branches'
+      ;;
+  esac
 }
 
 _gwt-remove() {
