@@ -185,6 +185,15 @@ _gwt_cmd_switch() {
     return 1
   }
 
+  # Protected branch → go to main repo
+  if _gwt_is_protected "$wt_branch"; then
+    local main_repo=$(_gwt_main_repo)
+    cd "$main_repo" || { echo "gwt: failed to enter main repo at $main_repo" >&2; return 1; }
+    echo "Switched to: $main_repo"
+    $no_ai || _gwt_launch_provider "$mode"
+    return $?
+  fi
+
   # Try local worktree first
   local wt_path
   wt_path=$(_gwt_find_path "$wt_branch" 2>/dev/null)
@@ -197,13 +206,7 @@ _gwt_cmd_switch() {
     return $?
   fi
 
-  # Fallback: try remote branch (skip protected branches like main/master)
-  _gwt_is_protected "$wt_branch" && {
-    echo "gwt: no worktree matches '$wt_branch'" >&2
-    echo "gwt: use 'gwt list' to see available worktrees" >&2
-    return 1
-  }
-
+  # Fallback: try remote branch
   echo "Fetching from origin..."
   local fetch_output
   fetch_output=$(git fetch origin 2>&1) || {
